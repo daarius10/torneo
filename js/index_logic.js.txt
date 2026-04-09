@@ -1,13 +1,12 @@
 const DB_KEY = 'liga_maestros_v11';
 const MATCH_KEY = 'partidos_maestros_v11';
 
-// DATOS PRE-CARGADOS PARA LA EXPOSICIÓN
-const DATOS_EQUIPOS_PRO = '[{"id":1,"nombre":"Soldados de Trump","jugadores":["Jugador 1","Jugador 2"]},{"id":2,"nombre":"Maduros","jugadores":["Jugador 1","Jugador 2"]},{"id":3,"nombre":"Correcciones","jugadores":["Jugador 1","Jugador 2"]},{"id":4,"nombre":"Butaneros","jugadores":["Jugador 1","Jugador 2"]}]';
+// DATOS PRE-CARGADOS CON TUS 4 EQUIPOS
+const DATOS_EQUIPOS_PRO = '[{"id":1,"nombre":"Soldados de Trump","jugadores":["Trump A","Trump B"]},{"id":2,"nombre":"Maduros","jugadores":["Maduro A","Maduro B"]},{"id":3,"nombre":"Correcciones","jugadores":["Corrector A","Corrector B"]},{"id":4,"nombre":"Butaneros","jugadores":["Butanero A","Butanero B"]}]';
 const DATOS_PARTIDOS_PRO = '[]'; 
 
 let jornadaActualAdmin = 1;
 
-// Función que rescata los datos o usa los de arriba si está vacío
 function obtenerDatos(key) {
     const local = localStorage.getItem(key);
     if (local && local !== "[]") return JSON.parse(local);
@@ -69,7 +68,7 @@ function generarTorneo() {
     localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
     jornadaActualAdmin = 1;
     renderAdmin();
-    alert("Calendario Creado con éxito.");
+    alert("¡Torneo Generado! Ya puedes ver las jornadas abajo.");
 }
 
 function guardarResultado(idx) {
@@ -85,8 +84,8 @@ function guardarResultado(idx) {
         if(val > 0) p.goleadores.push({ nombre: input.dataset.name, goles: val, equipo: input.dataset.team, tipo: input.dataset.tipo });
     });
     localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
-    alert("Resultado guardado.");
     renderAdmin();
+    alert("Resultado guardado correctamente");
 }
 
 function sumarGoles(idx) {
@@ -109,56 +108,53 @@ function renderAdmin() {
     const eq = obtenerDatos(DB_KEY);
     const par = obtenerDatos(MATCH_KEY);
     
-    const listaContainer = document.getElementById('lista-equipos-admin');
-    if(listaContainer) {
-        listaContainer.innerHTML = "<h3>EQUIPOS</h3>" + eq.map(e => `
-            <div class="team-box">
-                <button class="btn-del" style="position:absolute; right:15px; top:15px;" onclick="eliminarEquipo(${e.id})">×</button>
-                <strong style="color:var(--primary); font-size:1.2rem;">${e.nombre}</strong>
+    document.getElementById('lista-equipos-admin').innerHTML = "<h3>EQUIPOS PARTICIPANTES</h3>" + eq.map(e => `
+        <div class="team-box">
+            <button class="btn-del" style="position:absolute; right:15px; top:15px;" onclick="eliminarEquipo(${e.id})">×</button>
+            <strong style="color:var(--primary); font-size:1.4rem;">${e.nombre}</strong>
+            <div style="margin-top:10px;">
+                ${e.jugadores.map((j, i) => `<span class="player-tag">${j}</span>`).join('')}
             </div>
-        `).join('');
-    }
+        </div>
+    `).join('');
 
-    const filtContainer = document.getElementById('filtros-jornada');
-    if(filtContainer) {
-        const numJ = [...new Set(par.map(p => p.jornada))].sort((a,b)=>a-b);
-        filtContainer.innerHTML = numJ.map(n => `
-            <button class="btn-jornada ${jornadaActualAdmin === n ? 'active' : ''}" onclick="jornadaActualAdmin=${n}; renderAdmin()">JORNADA ${n}</button>
-        `).join('');
-    }
+    const numJ = [...new Set(par.map(p => p.jornada))].sort((a,b)=>a-b);
+    document.getElementById('filtros-jornada').innerHTML = numJ.map(n => `
+        <button class="btn-jornada ${jornadaActualAdmin === n ? 'active' : ''}" onclick="jornadaActualAdmin=${n}; renderAdmin()">JORNADA ${n}</button>
+    `).join('');
 
-    const partContainer = document.getElementById('partidos-admin');
-    if(partContainer) {
-        partContainer.innerHTML = par.map((p, i) => {
-            if(p.jornada !== jornadaActualAdmin) return "";
-            const eqL = eq.find(e => e.nombre === p.local);
-            const eqV = eq.find(e => e.nombre === p.vis);
-            const filaG = (j, team, side) => `
-                <div class="player-goal-item">
-                    <span class="player-name-label">${j}</span>
-                    <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Normal" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Normal')?.goles || 0}">
-                    <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Penalti" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Penalti')?.goles || 0}" style="border-color:var(--yellow) !important">
-                </div>`;
-
-            return `
-            <div class="match-edit">
-                <div style="display:flex; justify-content:space-around; align-items:center; margin-bottom:15px; background:#000; padding:10px; border-radius:10px;">
-                    <b>${p.local}</b> 
-                    <input type="number" id="l-${i}" value="${p.gl}" readonly class="score-display">
-                    <span>VS</span>
-                    <input type="number" id="v-${i}" value="${p.gv}" readonly class="score-display"> 
-                    <b>${p.vis}</b>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                    <div>${eqL ? eqL.jugadores.map(j => filaG(j, p.local, 'l')).join('') : ''}</div>
-                    <div>${eqV ? eqV.jugadores.map(j => filaG(j, p.vis, 'v')).join('') : ''}</div>
-                </div>
-                <button class="btn-main" onclick="guardarResultado(${i})" style="margin-top:15px;">GUARDAR</button>
+    document.getElementById('partidos-admin').innerHTML = par.map((p, i) => {
+        if(p.jornada !== jornadaActualAdmin) return "";
+        const eqL = eq.find(e => e.nombre === p.local);
+        const eqV = eq.find(e => e.nombre === p.vis);
+        const filaG = (j, team, side) => `
+            <div class="player-goal-item">
+                <span class="player-name-label">${j}</span>
+                <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Normal" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Normal')?.goles || 0}">
+                <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Penalti" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Penalti')?.goles || 0}" style="border-color:var(--yellow) !important">
+                <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="PP" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='PP')?.goles || 0}" style="border-color:var(--red) !important">
+                <input type="number" class="g-all-${i}" data-name="${j}" data-team="${team}" data-tipo="Amarilla" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Amarilla')?.goles || 0}" style="border-color:var(--yellow) !important; color:var(--yellow) !important">
+                <input type="number" class="g-all-${i}" data-name="${j}" data-team="${team}" data-tipo="Roja" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Roja')?.goles || 0}" style="border-color:var(--red) !important; color:var(--red) !important">
             </div>`;
-        }).join("");
-    }
-}
-// Ejecutar render inicial si estamos en la página correcta
-if(document.getElementById('panel') && document.getElementById('panel').style.display !== 'none') {
-    renderAdmin();
+
+        return `
+        <div class="match-edit">
+            <div style="margin-bottom:20px;">
+                <label style="font-size:11px; color:var(--primary); font-weight:bold;">Programación Jornada ${p.jornada}:</label>
+                <input type="datetime-local" id="fecha-${i}" value="${p.fecha || ''}">
+            </div>
+            <div style="display:flex; justify-content:space-around; align-items:center; margin-bottom:25px; background:#000; padding:15px; border-radius:10px; border: 1px solid #333;">
+                <b style="font-size:1.2rem; min-width:120px; text-align:right;">${p.local}</b> 
+                <input type="number" id="l-${i}" value="${p.gl}" readonly class="score-display">
+                <span style="color:#666; font-weight:bold;">VS</span>
+                <input type="number" id="v-${i}" value="${p.gv}" readonly class="score-display"> 
+                <b style="font-size:1.2rem; min-width:120px; text-align:left;">${p.vis}</b>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
+                <div>${eqL ? eqL.jugadores.map(j => filaG(j, p.local, 'l')).join('') : ''}</div>
+                <div>${eqV ? eqV.jugadores.map(j => filaG(j, p.vis, 'v')).join('') : ''}</div>
+            </div>
+            <button class="btn-main" onclick="guardarResultado(${i})" style="margin-top:25px;">ACTUALIZAR PARTIDO</button>
+        </div>`;
+    }).join("");
 }
