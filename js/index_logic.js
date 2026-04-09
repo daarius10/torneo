@@ -16,38 +16,58 @@ function cargarTodo() {
     const equipos = obtenerDatos(DB_KEY);
     const partidos = obtenerDatos(MATCH_KEY);
 
-    // Rellenar Clasificación
+    // 1. Rellenar Clasificación con Lógica Real
     const tablaClas = document.querySelector('#tabla-clasificacion tbody');
     if (tablaClas) {
-        tablaClas.innerHTML = equipos.map(e => `
+        // Inicializamos estadísticas para cada equipo
+        let stats = equipos.map(e => ({ nombre: e.nombre, pj: 0, dg: 0, pts: 0 }));
+
+        // Procesamos los partidos jugados
+        partidos.forEach(p => {
+            if (p.jugado) {
+                let loc = stats.find(s => s.nombre === p.local);
+                let vis = stats.find(s => s.nombre === p.vis);
+                if (loc && vis) {
+                    loc.pj++; vis.pj++;
+                    loc.dg += (p.gl - p.gv);
+                    vis.dg += (p.gv - p.gl);
+                    if (p.gl > p.gv) loc.pts += 3;
+                    else if (p.gl < p.gv) vis.pts += 3;
+                    else { loc.pts += 1; vis.pts += 1; }
+                }
+            }
+        });
+
+        // Ordenar por puntos y luego por diferencia de goles
+        stats.sort((a, b) => b.pts - a.pts || b.dg - a.dg);
+
+        tablaClas.innerHTML = stats.map(s => `
             <tr>
-                <td>${e.nombre}</td>
-                <td>0</td>
-                <td>0</td>
-                <td>0</td>
+                <td>${s.nombre}</td>
+                <td>${s.pj}</td>
+                <td>${s.dg}</td>
+                <td class="pts">${s.pts}</td>
             </tr>
         `).join('');
     }
 
-    // Rellenar Goleadores
+    // 2. Rellenar Goleadores
     const tablaGoles = document.querySelector('#lista-goleadores');
     if (tablaGoles) {
-        tablaGoles.innerHTML = equipos.length > 0 
-            ? '<p style="color:#aaa; font-size:0.9rem;">Esperando resultados...</p>' 
-            : '';
+        tablaGoles.innerHTML = '<p style="color:#888; font-size:0.85rem;">Esperando resultados del admin...</p>';
     }
 
-    // Rellenar Calendario
+    // 3. Rellenar Calendario
     const contenedorPartidos = document.querySelector('#contenedor-partidos');
     if (contenedorPartidos) {
         if (partidos.length === 0) {
-            contenedorPartidos.innerHTML = '<p style="text-align:center; color:#666;">Torneo no generado. Ve al Panel Admin.</p>';
+            contenedorPartidos.innerHTML = '<p style="text-align:center; color:#666; font-size:13px;">Torneo no generado. Ve al Panel Admin.</p>';
         } else {
             contenedorPartidos.innerHTML = partidos.map(p => `
-                <div style="background:#1a1a1a; margin:10px 0; padding:10px; border-radius:8px; border:1px solid #333; display:flex; justify-content:space-between;">
-                    <span>${p.local}</span>
-                    <b style="color:#00ff88">${p.gl} - ${p.gv}</b>
-                    <span>${p.vis}</span>
+                <div class="match-card">
+                    <span class="team-n">${p.local}</span>
+                    <span class="score">${p.gl} - ${p.gv}</span>
+                    <span class="team-n" style="text-align:right;">${p.vis}</span>
                 </div>
             `).join('');
         }
