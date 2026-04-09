@@ -1,160 +1,28 @@
 const DB_KEY = 'liga_maestros_v11';
 const MATCH_KEY = 'partidos_maestros_v11';
-
-// DATOS PRE-CARGADOS CON TUS 4 EQUIPOS
 const DATOS_EQUIPOS_PRO = '[{"id":1,"nombre":"Soldados de Trump","jugadores":["Trump A","Trump B"]},{"id":2,"nombre":"Maduros","jugadores":["Maduro A","Maduro B"]},{"id":3,"nombre":"Correcciones","jugadores":["Corrector A","Corrector B"]},{"id":4,"nombre":"Butaneros","jugadores":["Butanero A","Butanero B"]}]';
-const DATOS_PARTIDOS_PRO = '[]'; 
-
-let jornadaActualAdmin = 1;
 
 function obtenerDatos(key) {
     const local = localStorage.getItem(key);
     if (local && local !== "[]") return JSON.parse(local);
-    const backup = (key === DB_KEY) ? DATOS_EQUIPOS_PRO : DATOS_PARTIDOS_PRO;
-    if (backup && backup !== '[]') {
-        localStorage.setItem(key, backup);
-        return JSON.parse(backup);
+    if (key === DB_KEY) {
+        localStorage.setItem(key, DATOS_EQUIPOS_PRO);
+        return JSON.parse(DATOS_EQUIPOS_PRO);
     }
     return [];
 }
 
-function entrar() {
-    const pass = document.getElementById('passInput').value;
-    if(pass === 'darius') {
-        document.getElementById('login-container').style.display = 'none';
-        document.getElementById('panel').style.display = 'block';
-        renderAdmin();
-    } else { alert('Clave incorrecta'); }
-}
-
-function addEquipo() {
-    const nombre = document.getElementById('nameE').value.trim();
-    const jugadores = document.getElementById('playersE').value.split(',').map(j => j.trim()).filter(j => j !== "");
-    if(!nombre || jugadores.length === 0) return;
-    let eq = obtenerDatos(DB_KEY);
-    eq.push({ id: Date.now(), nombre, jugadores });
-    localStorage.setItem(DB_KEY, JSON.stringify(eq));
-    document.getElementById('nameE').value = ""; document.getElementById('playersE').value = "";
-    renderAdmin();
-}
-
-function eliminarEquipo(id) {
-    if(!confirm('¿Eliminar equipo?')) return;
-    let eq = obtenerDatos(DB_KEY);
-    eq = eq.filter(e => e.id !== id);
-    localStorage.setItem(DB_KEY, JSON.stringify(eq));
-    renderAdmin();
-}
-
-function generarTorneo() {
-    let eq = obtenerDatos(DB_KEY);
-    if(eq.length < 2) return alert("Mínimo 2 equipos");
-    let nombres = eq.map(e => e.nombre);
-    if (nombres.length % 2 !== 0) nombres.push("DESCANSA");
-    const numEquipos = nombres.length;
-    const numJornadas = numEquipos - 1;
-    const partidosPorJornada = numEquipos / 2;
-    let partidos = [];
-    for (let j = 0; j < numJornadas; j++) {
-        for (let p = 0; p < partidosPorJornada; p++) {
-            let local = nombres[p];
-            let visitante = nombres[numEquipos - 1 - p];
-            if (local !== "DESCANSA" && visitante !== "DESCANSA") {
-                partidos.push({ jornada: j + 1, local, vis: visitante, gl: 0, gv: 0, jugado: false, goleadores: [], fecha: "" });
-            }
-        }
-        nombres.splice(1, 0, nombres.pop());
-    }
-    localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
-    jornadaActualAdmin = 1;
-    renderAdmin();
-    alert("¡Torneo Generado! Ya puedes ver las jornadas abajo.");
-}
-
-function guardarResultado(idx) {
-    let partidos = obtenerDatos(MATCH_KEY);
-    const p = partidos[idx];
-    p.gl = parseInt(document.getElementById(`l-${idx}`).value) || 0;
-    p.gv = parseInt(document.getElementById(`v-${idx}`).value) || 0;
-    p.fecha = document.getElementById(`fecha-${idx}`).value;
-    p.jugado = true;
-    p.goleadores = [];
-    document.querySelectorAll(`.g-all-${idx}`).forEach(input => {
-        const val = parseInt(input.value) || 0;
-        if(val > 0) p.goleadores.push({ nombre: input.dataset.name, goles: val, equipo: input.dataset.team, tipo: input.dataset.tipo });
-    });
-    localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
-    renderAdmin();
-    alert("Resultado guardado correctamente");
-}
-
-function sumarGoles(idx) {
-    let sumaL = 0; let sumaV = 0;
-    document.querySelectorAll(`.g-l-${idx}`).forEach(i => {
-        const val = parseInt(i.value) || 0;
-        if(i.dataset.tipo === 'Normal' || i.dataset.tipo === 'Penalti') sumaL += val;
-        if(i.dataset.tipo === 'PP') sumaV += val;
-    });
-    document.querySelectorAll(`.g-v-${idx}`).forEach(i => {
-        const val = parseInt(i.value) || 0;
-        if(i.dataset.tipo === 'Normal' || i.dataset.tipo === 'Penalti') sumaV += val;
-        if(i.dataset.tipo === 'PP') sumaL += val;
-    });
-    document.getElementById(`l-${idx}`).value = sumaL;
-    document.getElementById(`v-${idx}`).value = sumaV;
-}
-
-function renderAdmin() {
+document.addEventListener('DOMContentLoaded', () => {
     const eq = obtenerDatos(DB_KEY);
-    const par = obtenerDatos(MATCH_KEY);
-    
-    document.getElementById('lista-equipos-admin').innerHTML = "<h3>EQUIPOS PARTICIPANTES</h3>" + eq.map(e => `
-        <div class="team-box">
-            <button class="btn-del" style="position:absolute; right:15px; top:15px;" onclick="eliminarEquipo(${e.id})">×</button>
-            <strong style="color:var(--primary); font-size:1.4rem;">${e.nombre}</strong>
-            <div style="margin-top:10px;">
-                ${e.jugadores.map((j, i) => `<span class="player-tag">${j}</span>`).join('')}
-            </div>
-        </div>
-    `).join('');
-
-    const numJ = [...new Set(par.map(p => p.jornada))].sort((a,b)=>a-b);
-    document.getElementById('filtros-jornada').innerHTML = numJ.map(n => `
-        <button class="btn-jornada ${jornadaActualAdmin === n ? 'active' : ''}" onclick="jornadaActualAdmin=${n}; renderAdmin()">JORNADA ${n}</button>
-    `).join('');
-
-    document.getElementById('partidos-admin').innerHTML = par.map((p, i) => {
-        if(p.jornada !== jornadaActualAdmin) return "";
-        const eqL = eq.find(e => e.nombre === p.local);
-        const eqV = eq.find(e => e.nombre === p.vis);
-        const filaG = (j, team, side) => `
-            <div class="player-goal-item">
-                <span class="player-name-label">${j}</span>
-                <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Normal" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Normal')?.goles || 0}">
-                <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Penalti" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Penalti')?.goles || 0}" style="border-color:var(--yellow) !important">
-                <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="PP" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='PP')?.goles || 0}" style="border-color:var(--red) !important">
-                <input type="number" class="g-all-${i}" data-name="${j}" data-team="${team}" data-tipo="Amarilla" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Amarilla')?.goles || 0}" style="border-color:var(--yellow) !important; color:var(--yellow) !important">
-                <input type="number" class="g-all-${i}" data-name="${j}" data-team="${team}" data-tipo="Roja" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Roja')?.goles || 0}" style="border-color:var(--red) !important; color:var(--red) !important">
-            </div>`;
-
-        return `
-        <div class="match-edit">
-            <div style="margin-bottom:20px;">
-                <label style="font-size:11px; color:var(--primary); font-weight:bold;">Programación Jornada ${p.jornada}:</label>
-                <input type="datetime-local" id="fecha-${i}" value="${p.fecha || ''}">
-            </div>
-            <div style="display:flex; justify-content:space-around; align-items:center; margin-bottom:25px; background:#000; padding:15px; border-radius:10px; border: 1px solid #333;">
-                <b style="font-size:1.2rem; min-width:120px; text-align:right;">${p.local}</b> 
-                <input type="number" id="l-${i}" value="${p.gl}" readonly class="score-display">
-                <span style="color:#666; font-weight:bold;">VS</span>
-                <input type="number" id="v-${i}" value="${p.gv}" readonly class="score-display"> 
-                <b style="font-size:1.2rem; min-width:120px; text-align:left;">${p.vis}</b>
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
-                <div>${eqL ? eqL.jugadores.map(j => filaG(j, p.local, 'l')).join('') : ''}</div>
-                <div>${eqV ? eqV.jugadores.map(j => filaG(j, p.vis, 'v')).join('') : ''}</div>
-            </div>
-            <button class="btn-main" onclick="guardarResultado(${i})" style="margin-top:25px;">ACTUALIZAR PARTIDO</button>
-        </div>`;
-    }).join("");
-}
+    const tabla = document.querySelector('.tabla-clasificacion tbody');
+    if(tabla && eq.length > 0) {
+        tabla.innerHTML = eq.map(e => `
+            <tr>
+                <td>${e.nombre}</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+            </tr>
+        `).join('');
+    }
+});
