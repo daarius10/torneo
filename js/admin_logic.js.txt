@@ -19,12 +19,15 @@ function entrar() {
         document.getElementById('login-container').style.display = 'none';
         document.getElementById('panel').style.display = 'block';
         renderAdmin();
-    } else { alert('Clave incorrecta'); }
+    } else { 
+        alert('Clave incorrecta'); 
+    }
 }
 
 function renderAdmin() {
     const eq = obtenerDatos(DB_KEY);
     const par = obtenerDatos(MATCH_KEY);
+    
     const lista = document.getElementById('lista-equipos-admin');
     if(lista) {
         lista.innerHTML = "<h3>EQUIPOS CARGADOS</h3>" + eq.map(e => `
@@ -34,6 +37,34 @@ function renderAdmin() {
             </div>
         `).join('');
     }
+
+    const partidosDiv = document.getElementById('partidos-admin');
+    if(partidosDiv && par.length > 0) {
+        partidosDiv.innerHTML = par.map((p, i) => `
+            <div style="background:#1a1a1a; padding:15px; margin:10px 0; border-radius:8px; border:1px solid #444;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>${p.local}</span>
+                    <input type="number" id="l-${i}" value="${p.gl}" style="width:40px; text-align:center;">
+                    <span>-</span>
+                    <input type="number" id="v-${i}" value="${p.gv}" style="width:40px; text-align:center;">
+                    <span>${p.vis}</span>
+                </div>
+                <button onclick="guardarResultado(${i})" style="margin-top:10px; width:100%; padding:5px; background:#00ff88; color:#000; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">GUARDAR RESULTADO</button>
+            </div>
+        `).join('');
+    }
+}
+
+function addEquipo() {
+    const nombre = document.getElementById('nameE').value.trim();
+    const jugadores = document.getElementById('playersE').value.split(',').map(j => j.trim()).filter(j => j !== "");
+    if(!nombre || jugadores.length === 0) return;
+    let eq = obtenerDatos(DB_KEY);
+    eq.push({ id: Date.now(), nombre, jugadores });
+    localStorage.setItem(DB_KEY, JSON.stringify(eq));
+    document.getElementById('nameE').value = ""; 
+    document.getElementById('playersE').value = "";
+    renderAdmin();
 }
 
 function generarTorneo() {
@@ -50,12 +81,22 @@ function generarTorneo() {
             let local = nombres[p];
             let visitante = nombres[numEquipos - 1 - p];
             if (local !== "DESCANSA" && visitante !== "DESCANSA") {
-                partidos.push({ jornada: j + 1, local, vis: visitante, gl: 0, gv: 0, jugado: false, goleadores: [], fecha: "" });
+                partidos.push({ jornada: j + 1, local, vis: visitante, gl: 0, gv: 0, jugado: false });
             }
         }
         nombres.splice(1, 0, nombres.pop());
     }
     localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
-    alert("Torneo generado correctamente");
+    alert("Torneo generado con éxito");
+    renderAdmin();
+}
+
+function guardarResultado(idx) {
+    let partidos = obtenerDatos(MATCH_KEY);
+    partidos[idx].gl = parseInt(document.getElementById(`l-${idx}`).value) || 0;
+    partidos[idx].gv = parseInt(document.getElementById(`v-${idx}`).value) || 0;
+    partidos[idx].jugado = true;
+    localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
+    alert("Resultado actualizado");
     renderAdmin();
 }
