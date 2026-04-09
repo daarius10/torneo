@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Liga de Maestros</title>
+    <style>
+        :root { 
+            --primary: #00ff88; --bg: #0a0a0a; --card: #151515; --text: #ffffff; --dim: #888;
+        }
+        body { 
+            margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); 
+            background-image: radial-gradient(circle at top right, #00ff8810, transparent);
+        }
+        header { padding: 40px 20px; text-align: center; background: linear-gradient(to bottom, #002211, transparent); }
+        h1 { margin: 0; text-transform: uppercase; letter-spacing: 5px; color: var(--primary); text-shadow: 0 0 20px rgba(0,255,136,0.3); }
+
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 1fr 320px; gap: 25px; }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid #222; margin-bottom: 25px; }
+        h2 { font-size: 14px; text-transform: uppercase; color: var(--primary); margin-top: 0; border-left: 3px solid var(--primary); padding-left: 10px; }
+
+        /* Clasificación */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; color: var(--dim); font-size: 11px; padding: 10px; border-bottom: 1px solid #222; }
+        td { padding: 12px 10px; border-bottom: 1px solid #1a1a1a; font-weight: 500; }
+        .pts { color: var(--primary); font-weight: bold; }
+
+        /* Calendario */
+        .jornada-nav { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-j { background: #222; border: none; color: white; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        .btn-j.active { background: var(--primary); color: black; font-weight: bold; }
+
+        .match-card { background: #1a1a1a; padding: 15px; border-radius: 10px; margin-bottom: 10px; position: relative; }
+        .match-time { display: block; text-align: center; color: var(--primary); font-size: 11px; font-weight: bold; margin-bottom: 8px; opacity: 0.8; }
+        .match-flex { display: flex; justify-content: space-between; align-items: center; }
+        .team-n { width: 40%; font-weight: bold; font-size: 14px; }
+        .score { background: #000; padding: 5px 15px; border-radius: 5px; border: 1px solid #333; font-weight: bold; min-width: 40px; text-align: center; }
+
+        /* Pichichi */
+        .pichichi-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; font-size: 14px; }
+
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>LIGA DE MAESTROS</h1>
+</header>
+
+<div class="container">
+    <main>
+        <div class="card">
+            <h2>Clasificación Actual</h2>
+            <table id="tabla-body">
+                <thead>
+                    <tr><th>EQUIPO</th><th>PJ</th><th>DG</th><th class="pts">PTS</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Calendario y Resultados</h2>
+            <div id="jornada-btns" class="jornada-nav"></div>
+            <div id="partidos-list"></div>
+        </div>
+    </main>
+
+    <aside>
+        <div class="card">
+            <h2>Máximos Goleadores ⚽</h2>
+            <div id="pichichi-list"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Comité de Disciplina 🟥</h2>
+            <div id="sancionados-list" style="font-size: 13px; color: var(--dim);">Limpio de tarjetas</div>
+        </div>
+    </aside>
+</div>
+
+<script>
+    const MATCH_KEY = 'partidos_maestros_v11';
+    const DB_KEY = 'liga_maestros_v11';
+    let jornadaVer = 1;
+
+    function formatFecha(fechaStr) {
+        if(!fechaStr) return "Hora pendiente";
+        const d = new Date(fechaStr);
+        return d.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' }) + " - " + 
+               d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+    }
+
+    function cargarTodo() {
+        const partidos = JSON.parse(localStorage.getItem(MATCH_KEY)) || [];
+        const equipos = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+        
+        // 1. Clasificación
+        let stats = {};
+        equipos.forEach(e => stats[e.nombre] = { pj:0, dg:0, pts:0 });
+        
+        partidos.filter(p => p.jugado).forEach(p => {
+            stats[p.local].pj++; stats[p.vis].pj++;
+            stats[p.local].dg += (p.gl - p.gv);
+            stats[p.vis].dg += (p.gv - p.gl);
+            if(p.gl > p.gv) stats[p.local].pts += 3;
+            else if(p.gv > p.gl) stats[p.vis].pts += 3;
+            else { stats[p.local].pts += 1; stats[p.vis].pts += 1; }
+        });
+
+        const ranking = Object.entries(stats).sort((a,b) => b[1].pts - a[1].pts || b[1].dg - a[1].dg);
+        document.querySelector('#tabla-body tbody').innerHTML = ranking.map(([nom, s]) => `
+            <tr><td>${nom}</td><td>${s.pj}</td><td>${s.dg}</td><td class="pts">${s.pts}</td></tr>
+        `).join('');
+
+        // 2. Calendario
+        const numJ = [...new Set(partidos.map(p => p.jornada))].sort((a,b)=>a-b);
+        document.getElementById('jornada-btns').innerHTML = numJ.map(n => `
+            <button class="btn-j ${jornadaVer === n ? 'active' : ''}" onclick="jornadaVer=${n}; cargarTodo()">J${n}</button>
+        `).join('');
+
+        document.getElementById('partidos-list').innerHTML = partidos.filter(p => p.jornada === jornadaVer).map(p => `
+            <div class="match-card">
+                <span class="match-time">${formatFecha(p.fecha)}</span>
+                <div class="match-flex">
+                    <span class="team-n" style="text-align:right;">${p.local}</span>
+                    <span class="score">${p.jugado ? p.gl + ' - ' + p.gv : 'VS'}</span>
+                    <span class="team-n" style="text-align:left;">${p.vis}</span>
+                </div>
+            </div>
+        `).join('');
+
+        // 3. Pichichi
+        let goles = {};
+        partidos.forEach(p => {
+            p.goleadores?.forEach(g => {
+                if(g.tipo === 'Normal' || g.tipo === 'Penalti') {
+                    goles[g.nombre] = (goles[g.nombre] || 0) + g.goles;
+                }
+            });
+        });
+        const top = Object.entries(goles).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        document.getElementById('pichichi-list').innerHTML = top.map(([nom, n]) => `
+            <div class="pichichi-item"><span>${nom}</span> <b>${n} ⚽</b></div>
+        `).join('');
+    }
+
+    // Auto-refresh cada 30 segundos por si el admin cambia algo
+    setInterval(cargarTodo, 30000);
+    cargarTodo();
+</script>
+</body>
+</html>

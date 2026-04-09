@@ -1,0 +1,70 @@
+<script>
+    const MATCH_KEY = 'partidos_maestros_v11';
+    const DB_KEY = 'liga_maestros_v11';
+    let jornadaVer = 1;
+
+    function formatFecha(fechaStr) {
+        if(!fechaStr) return "Hora pendiente";
+        const d = new Date(fechaStr);
+        return d.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' }) + " - " + 
+               d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+    }
+
+    function cargarTodo() {
+        const partidos = JSON.parse(localStorage.getItem(MATCH_KEY)) || [];
+        const equipos = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+        
+        // 1. Clasificación
+        let stats = {};
+        equipos.forEach(e => stats[e.nombre] = { pj:0, dg:0, pts:0 });
+        
+        partidos.filter(p => p.jugado).forEach(p => {
+            stats[p.local].pj++; stats[p.vis].pj++;
+            stats[p.local].dg += (p.gl - p.gv);
+            stats[p.vis].dg += (p.gv - p.gl);
+            if(p.gl > p.gv) stats[p.local].pts += 3;
+            else if(p.gv > p.gl) stats[p.vis].pts += 3;
+            else { stats[p.local].pts += 1; stats[p.vis].pts += 1; }
+        });
+
+        const ranking = Object.entries(stats).sort((a,b) => b[1].pts - a[1].pts || b[1].dg - a[1].dg);
+        document.querySelector('#tabla-body tbody').innerHTML = ranking.map(([nom, s]) => `
+            <tr><td>${nom}</td><td>${s.pj}</td><td>${s.dg}</td><td class="pts">${s.pts}</td></tr>
+        `).join('');
+
+        // 2. Calendario
+        const numJ = [...new Set(partidos.map(p => p.jornada))].sort((a,b)=>a-b);
+        document.getElementById('jornada-btns').innerHTML = numJ.map(n => `
+            <button class="btn-j ${jornadaVer === n ? 'active' : ''}" onclick="jornadaVer=${n}; cargarTodo()">J${n}</button>
+        `).join('');
+
+        document.getElementById('partidos-list').innerHTML = partidos.filter(p => p.jornada === jornadaVer).map(p => `
+            <div class="match-card">
+                <span class="match-time">${formatFecha(p.fecha)}</span>
+                <div class="match-flex">
+                    <span class="team-n" style="text-align:right;">${p.local}</span>
+                    <span class="score">${p.jugado ? p.gl + ' - ' + p.gv : 'VS'}</span>
+                    <span class="team-n" style="text-align:left;">${p.vis}</span>
+                </div>
+            </div>
+        `).join('');
+
+        // 3. Pichichi
+        let goles = {};
+        partidos.forEach(p => {
+            p.goleadores?.forEach(g => {
+                if(g.tipo === 'Normal' || g.tipo === 'Penalti') {
+                    goles[g.nombre] = (goles[g.nombre] || 0) + g.goles;
+                }
+            });
+        });
+        const top = Object.entries(goles).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        document.getElementById('pichichi-list').innerHTML = top.map(([nom, n]) => `
+            <div class="pichichi-item"><span>${nom}</span> <b>${n} ⚽</b></div>
+        `).join('');
+    }
+
+    // Auto-refresh cada 30 segundos por si el admin cambia algo
+    setInterval(cargarTodo, 30000);
+    cargarTodo();
+</script>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - La Liga de Maestros</title>
+    <style>
+        :root { 
+            --primary: #00ff88; --primary-hover: #00cc6a; --bg-dark: #0f0f0f; 
+            --card-bg: #1a1a1a; --text-main: #ffffff; --text-dim: #aaaaaa; --red: #ff4d4d; --yellow: #f1c40f; --border: #333;
+        }
+        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg-dark); color: var(--text-main); }
+        
+        #login-container {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2000'); 
+            background-size: cover; background-position: center;
+        }
+        .login-card { background: rgba(26, 26, 26, 0.95); padding: 45px; border-radius: 12px; width: 100%; max-width: 380px; text-align: center; border: 1px solid rgba(0, 255, 136, 0.3); }
+        .login-card h2 { color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 30px; }
+
+        #panel { display: none; max-width: 1100px; margin: 40px auto; padding: 20px; }
+        .admin-section { background: var(--card-bg); border-radius: 12px; padding: 25px; margin-bottom: 30px; border: 1px solid var(--border); }
+        
+        input[type="text"], input[type="password"], input[type="datetime-local"], textarea { width: 100%; padding: 12px; margin: 8px 0; background: #252525; border: 1px solid #444; border-radius: 8px; color: white; box-sizing: border-box; }
+        
+        /* Estilo de los números de goles/tarjetas */
+        input[type="number"] { background: #000 !important; color: var(--primary) !important; border: 1px solid var(--primary) !important; border-radius: 5px; font-weight: bold; font-size: 15px; width: 42px; text-align: center; outline: none; padding: 4px; }
+
+        .btn-main { background: var(--primary); color: #000; padding: 14px; width: 100%; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; }
+        .btn-main:hover { background: var(--primary-hover); }
+
+        .team-box { background: #222; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 15px; padding: 20px; position: relative; }
+        .btn-del { background: none; border: none; color: var(--red); cursor: pointer; font-weight: bold; font-size: 18px; }
+        
+        /* Resalte de nombres en la lista de equipos */
+        .player-tag { background: #333; color: var(--primary); padding: 6px 12px; border-radius: 20px; font-size: 13px; margin: 4px; display: inline-flex; align-items: center; border: 1px solid #444; font-weight: 600; }
+        
+        .match-edit { background: #1a1a1a; border: 1px solid var(--border); padding: 25px; margin: 20px 0; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* GRID DE JUGADORES CORREGIDO */
+        .grid-header { display: grid; grid-template-columns: 1fr 45px 45px 45px 45px 45px; gap: 10px; font-size: 11px; font-weight: bold; text-align: center; color: var(--text-dim); padding-bottom: 10px; border-bottom: 1px solid #444; margin-bottom: 10px; }
+        
+        .player-goal-item { display: grid; grid-template-columns: 1fr 45px 45px 45px 45px 45px; align-items: center; gap: 10px; padding: 10px 5px; border-bottom: 1px solid #2a2a2a; transition: 0.2s; }
+        .player-goal-item:hover { background: rgba(255,255,255,0.03); }
+
+        /* NOMBRES RESALTADOS */
+        .player-name-label { color: #fff; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; }
+
+        .score-display { width: 60px !important; font-size: 24px !important; height: 45px; background: #000; border: 2px solid var(--primary) !important; color: var(--primary) !important; }
+
+        #filtros-jornada { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+        .btn-jornada { background: #333; color: white; border: 1px solid #444; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-jornada.active { background: var(--primary); color: black; border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
+    </style>
+</head>
+<body>
+
+    <div id="login-container">
+        <div class="login-card">
+            <h2>Acceso Admin</h2>
+            <input type="password" id="passInput" placeholder="Clave de Seguridad" onkeypress="if(event.key==='Enter') entrar()">
+            <button class="btn-main" onclick="entrar()">Entrar al Sistema</button>
+        </div>
+    </div>
+
+    <div id="panel">
+        <h2 style="text-align:center; color: var(--primary); text-transform: uppercase; letter-spacing: 4px;">Administración - Liga de Maestros</h2>
+        
+        <div class="admin-section">
+            <h3>NUEVO EQUIPO</h3>
+            <input type="text" id="nameE" placeholder="Nombre del Equipo">
+            <textarea id="playersE" placeholder="Jugadores (separados por comas: Juan, Pedro, Luis...)"></textarea>
+            <button class="btn-main" onclick="addEquipo()">CREAR EQUIPO</button>
+        </div>
+
+        <div id="lista-equipos-admin"></div>
+
+        <div class="admin-section">
+            <h3 style="color: var(--primary);">GESTIÓN DE CALENDARIO</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="btn-main" style="flex:1; background: #222; color: var(--primary); border: 1px solid var(--primary);" onclick="generarTorneo()">Generar Todas las Jornadas</button>
+            </div>
+            <div id="filtros-jornada"></div>
+            <div id="partidos-admin"></div>
+        </div>
+        
+        <button style="background:transparent; border: 1px solid var(--red); color: var(--red); margin-top:50px;" class="btn-main" onclick="if(confirm('¿Borrar TODO el sistema?')){localStorage.clear(); location.reload();}">RESETEAR SISTEMA COMPLETO</button>
+    </div>
+
+    <script>
+        const DB_KEY = 'liga_maestros_v11';
+        const MATCH_KEY = 'partidos_maestros_v11';
+        let jornadaActualAdmin = 1;
+
+        function entrar() {
+            if(document.getElementById('passInput').value === 'darius') {
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('panel').style.display = 'block';
+                renderAdmin();
+            } else { alert('Clave incorrecta'); }
+        }
+
+        function addEquipo() {
+            const nombre = document.getElementById('nameE').value.trim();
+            const jugadores = document.getElementById('playersE').value.split(',').map(j => j.trim()).filter(j => j !== "");
+            if(!nombre || jugadores.length === 0) return;
+            let eq = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+            eq.push({ id: Date.now(), nombre, jugadores });
+            localStorage.setItem(DB_KEY, JSON.stringify(eq));
+            document.getElementById('nameE').value = ""; document.getElementById('playersE').value = "";
+            renderAdmin();
+        }
+
+        function eliminarEquipo(id) {
+            if(!confirm('¿Eliminar equipo?')) return;
+            let eq = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+            eq = eq.filter(e => e.id !== id);
+            localStorage.setItem(DB_KEY, JSON.stringify(eq));
+            renderAdmin();
+        }
+
+        function addJugadorManual(equipoId) {
+            const nuevo = prompt("Nombre del nuevo jugador:");
+            if(!nuevo) return;
+            let eq = JSON.parse(localStorage.getItem(DB_KEY));
+            const idx = eq.findIndex(e => e.id === equipoId);
+            eq[idx].jugadores.push(nuevo.trim());
+            localStorage.setItem(DB_KEY, JSON.stringify(eq));
+            renderAdmin();
+        }
+
+        function borrarJugadorManual(equipoId, pIdx) {
+            let eq = JSON.parse(localStorage.getItem(DB_KEY));
+            const idx = eq.findIndex(e => e.id === equipoId);
+            eq[idx].jugadores.splice(pIdx, 1);
+            localStorage.setItem(DB_KEY, JSON.stringify(eq));
+            renderAdmin();
+        }
+
+        function generarTorneo() {
+            let eq = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+            if(eq.length < 2) return alert("Mínimo 2 equipos");
+            let nombres = eq.map(e => e.nombre);
+            if (nombres.length % 2 !== 0) nombres.push("DESCANSA");
+            const numEquipos = nombres.length;
+            const numJornadas = numEquipos - 1;
+            const partidosPorJornada = numEquipos / 2;
+            let partidos = [];
+            for (let j = 0; j < numJornadas; j++) {
+                for (let p = 0; p < partidosPorJornada; p++) {
+                    let local = nombres[p];
+                    let visitante = nombres[numEquipos - 1 - p];
+                    if (local !== "DESCANSA" && visitante !== "DESCANSA") {
+                        partidos.push({ jornada: j + 1, local, vis: visitante, gl: 0, gv: 0, jugado: false, goleadores: [], fecha: "" });
+                    }
+                }
+                nombres.splice(1, 0, nombres.pop());
+            }
+            localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
+            jornadaActualAdmin = 1;
+            renderAdmin();
+            alert("Calendario Creado: " + numJornadas + " jornadas listas.");
+        }
+
+        function guardarResultado(idx) {
+            let partidos = JSON.parse(localStorage.getItem(MATCH_KEY));
+            const p = partidos[idx];
+            p.gl = parseInt(document.getElementById(`l-${idx}`).value) || 0;
+            p.gv = parseInt(document.getElementById(`v-${idx}`).value) || 0;
+            p.fecha = document.getElementById(`fecha-${idx}`).value;
+            p.jugado = true;
+            p.goleadores = [];
+            document.querySelectorAll(`.g-all-${idx}`).forEach(input => {
+                const val = parseInt(input.value) || 0;
+                if(val > 0) p.goleadores.push({ nombre: input.dataset.name, goles: val, equipo: input.dataset.team, tipo: input.dataset.tipo });
+            });
+            localStorage.setItem(MATCH_KEY, JSON.stringify(partidos));
+            alert("✅ Jornada " + p.jornada + " guardada correctamente.");
+            renderAdmin();
+        }
+
+        function sumarGoles(idx) {
+            let sumaL = 0; let sumaV = 0;
+            document.querySelectorAll(`.g-l-${idx}`).forEach(i => {
+                const val = parseInt(i.value) || 0;
+                if(i.dataset.tipo === 'Normal' || i.dataset.tipo === 'Penalti') sumaL += val;
+                if(i.dataset.tipo === 'PP') sumaV += val;
+            });
+            document.querySelectorAll(`.g-v-${idx}`).forEach(i => {
+                const val = parseInt(i.value) || 0;
+                if(i.dataset.tipo === 'Normal' || i.dataset.tipo === 'Penalti') sumaV += val;
+                if(i.dataset.tipo === 'PP') sumaL += val;
+            });
+            document.getElementById(`l-${idx}`).value = sumaL;
+            document.getElementById(`v-${idx}`).value = sumaV;
+        }
+
+        function renderAdmin() {
+            const eq = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+            const par = JSON.parse(localStorage.getItem(MATCH_KEY)) || [];
+            
+            document.getElementById('lista-equipos-admin').innerHTML = "<h3>EQUIPOS PARTICIPANTES</h3>" + eq.map(e => `
+                <div class="team-box">
+                    <button class="btn-del" style="position:absolute; right:15px; top:15px;" onclick="eliminarEquipo(${e.id})">×</button>
+                    <strong style="color:var(--primary); font-size:1.4rem;">${e.nombre}</strong>
+                    <div style="margin-top:10px;">
+                        ${e.jugadores.map((j, i) => `<span class="player-tag">${j}<span class="btn-del" style="font-size:12px; margin-left:8px;" onclick="borrarJugadorManual(${e.id}, ${i})">×</span></span>`).join('')}
+                        <button onclick="addJugadorManual(${e.id})" style="background:var(--primary); color:#000; border:none; padding:5px 12px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold;">+ JUGADOR</button>
+                    </div>
+                </div>
+            `).join('');
+
+            const numJ = [...new Set(par.map(p => p.jornada))].sort((a,b)=>a-b);
+            document.getElementById('filtros-jornada').innerHTML = numJ.map(n => `
+                <button class="btn-jornada ${jornadaActualAdmin === n ? 'active' : ''}" onclick="jornadaActualAdmin=${n}; renderAdmin()">JORNADA ${n}</button>
+            `).join('');
+
+            document.getElementById('partidos-admin').innerHTML = par.map((p, i) => {
+                if(p.jornada !== jornadaActualAdmin) return "";
+                const eqL = eq.find(e => e.nombre === p.local);
+                const eqV = eq.find(e => e.nombre === p.vis);
+                const filaG = (j, team, side) => `
+                    <div class="player-goal-item">
+                        <span class="player-name-label">${j}</span>
+                        <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Normal" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Normal')?.goles || 0}">
+                        <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="Penalti" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Penalti')?.goles || 0}" style="border-color:var(--yellow) !important">
+                        <input type="number" class="g-all-${i} g-${side}-${i}" data-name="${j}" data-team="${team}" data-tipo="PP" oninput="sumarGoles(${i})" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='PP')?.goles || 0}" style="border-color:var(--red) !important">
+                        <input type="number" class="g-all-${i}" data-name="${j}" data-team="${team}" data-tipo="Amarilla" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Amarilla')?.goles || 0}" style="border-color:var(--yellow) !important; color:var(--yellow) !important">
+                        <input type="number" class="g-all-${i}" data-name="${j}" data-team="${team}" data-tipo="Roja" value="${p.goleadores.find(g=>g.nombre===j && g.tipo==='Roja')?.goles || 0}" style="border-color:var(--red) !important; color:var(--red) !important">
+                    </div>`;
+
+                return `
+                <div class="match-edit">
+                    <div style="margin-bottom:20px;">
+                        <label style="font-size:11px; color:var(--primary); font-weight:bold; text-transform:uppercase;">Programación Jornada ${p.jornada}:</label>
+                        <input type="datetime-local" id="fecha-${i}" value="${p.fecha || ''}">
+                    </div>
+                    <div style="display:flex; justify-content:space-around; align-items:center; margin-bottom:25px; background:#000; padding:15px; border-radius:10px; border: 1px solid #333;">
+                        <b style="font-size:1.2rem; min-width:120px; text-align:right;">${p.local}</b> 
+                        <input type="number" id="l-${i}" value="${p.gl}" readonly class="score-display">
+                        <span style="color:#666; font-weight:bold;">VS</span>
+                        <input type="number" id="v-${i}" value="${p.gv}" readonly class="score-display"> 
+                        <b style="font-size:1.2rem; min-width:120px; text-align:left;">${p.vis}</b>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
+                        <div>
+                            <div class="grid-header"><span>JUGADOR LOCAL</span><span>G</span><span>P</span><span>PP</span><span style="color:var(--yellow)">A</span><span style="color:var(--red)">R</span></div>
+                            ${eqL ? eqL.jugadores.map(j => filaG(j, p.local, 'l')).join('') : ''}
+                        </div>
+                        <div>
+                            <div class="grid-header"><span>JUGADOR VISITA</span><span>G</span><span>P</span><span>PP</span><span style="color:var(--yellow)">A</span><span style="color:var(--red)">R</span></div>
+                            ${eqV ? eqV.jugadores.map(j => filaG(j, p.vis, 'v')).join('') : ''}
+                        </div>
+                    </div>
+                    <button class="btn-main" onclick="guardarResultado(${i})" style="margin-top:25px; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2);">ACTUALIZAR PARTIDO</button>
+                </div>`;
+            }).join("");
+        }
+    </script>
+</body>
+</html>
